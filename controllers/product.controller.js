@@ -127,6 +127,7 @@ exports.deleteProduct = async (req, res) => {
 // Controller function to get all products
 exports.getAllProducts = async (req, res) => {
   try {
+    console.log("Fetching all products...");
     const products = await productModel.find().populate("category", "name");
 
     const formatted = products.map((p) => ({
@@ -136,6 +137,7 @@ exports.getAllProducts = async (req, res) => {
 
     res.status(200).json(formatted);
   } catch (error) {
+    console.error("GET ALL PRODUCTS ERROR:", error);
     res.status(500).json({
       message: "Error fetching products",
       error: error.message,
@@ -331,7 +333,7 @@ exports.getLatestProducts = async (req, res) => {
       .populate("category", "name")
       .sort({ createdAt: -1 })
       .limit(20);
-    
+
     const formatted = products.map((p) => ({
       ...p._doc,
       category: p.category.name,

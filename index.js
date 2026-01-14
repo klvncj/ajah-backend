@@ -4,7 +4,7 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const app = express();
 const PORT = 5000;
-const mongoUrl = process.env.MONGO_URL;
+const mongoUrl = process.env.MONGODB_URL;
 // routes import
 const userRoutes = require("./routes/user.route");
 const productRoutes = require("./routes/product.route");
