@@ -2,9 +2,10 @@ const express = require("express");
 const router = require("express").Router();
 const { createProduct, getProductDetails, updateProduct, deleteProduct, getAllProducts, getProductsByCategory, searchProductsByName, getProductsPaginated, getProductsByCategoryName, getAllActiveProducts, getLatestProducts } = require("../controllers/product.controller");
 const { getTopSellingProducts } = require("../controllers/analytics.controller");
+const upload = require("../middleware/upload");
 
 // Route to create a new product
-router.post("/", createProduct);
+router.post("/", upload.array("images", 5), createProduct);
 // Route to update product details by ID
 router.put("/:id", updateProduct);
 // Route to delete product by ID

@@ -1,10 +1,11 @@
 const productModel = require("../models/product.model");
 const categoryModel = require("../models/category.model");
-const fuse = require("fuse.js");
+const uploadToCloudinary = require("../utility/cloudinaryUpload");
+
 // Controller function to create a new product
 exports.createProduct = async (req, res) => {
   try {
-    const {
+    let {
       name,
       description,
       price,
@@ -15,28 +16,48 @@ exports.createProduct = async (req, res) => {
       shortDescription,
       sizeChart,
     } = req.body;
+
+    if (typeof variations === "string") {
+      variations = JSON.parse(variations);
+    }
+
+    const files = req.files;
+
+    const uploadedImages = [];
+
+    for (const file of files) {
+      const result = await uploadToCloudinary(file.buffer);
+      uploadedImages.push(result.secure_url);
+    }
+
     const newProduct = new productModel({
       name,
       description,
       price,
       category,
       stock,
-      variations,
+      variations, // NOW ARRAY
       unit,
       shortDescription,
       sizeChart,
+      images: uploadedImages,
     });
+
     const savedProduct = await newProduct.save();
+
     res.status(201).json({
       message: "Product created successfully",
       productId: savedProduct._id,
     });
+
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error creating product", error: error.message });
+    res.status(500).json({
+      message: "Error creating product",
+      error: error.message,
+    });
   }
 };
+
 
 // Controller function to get product details
 exports.getProductDetails = async (req, res) => {

@@ -227,3 +227,45 @@ const Navbar = () => {
 };
 
 export default Navbar;
+
+exports.createProduct = async (req, res) => {
+  try {
+    const {
+      name,
+      description,
+      price,
+      category,
+      stock,
+      variations,
+      unit,
+      shortDescription,
+      sizeChart,
+    } = req.body;
+    const images = req.files;
+
+    // Here, you would typically upload images to a cloud service
+    // and get their URLs. For simplicity, we'll skip that step.
+    
+    const newProduct = new productModel({
+      name,
+      description,
+      price,
+      category,
+      stock,
+      variations,
+      unit,
+      shortDescription,
+      sizeChart,
+    });
+    const savedProduct = await newProduct.save();
+    res.status(201).json({
+      message: "Product created successfully",
+      productId: savedProduct._id,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error creating product", error: error.message });
+  }
+};
+
