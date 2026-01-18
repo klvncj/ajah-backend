@@ -9,6 +9,7 @@ function generateOrderId() {
   return `ORD-${timestamp}-${random}`; // e.g., ORD-12345-5F3C1A
 }
 
+// Order creation controller
 exports.createOrder = async (req, res) => {
   try {
     const { user, products, status, shippingAddress, payment } = req.body;
@@ -128,6 +129,7 @@ exports.createOrder = async (req, res) => {
   }
 };
 
+
 // Controller function to create a new order
 // exports.createOrder = async (req, res) => {
 //   try {
@@ -171,7 +173,7 @@ exports.getOrderByOrderId = async (req, res) => {
     const order = await OrderModel.findOne({
       orderId: { $regex: new RegExp(`^${orderIdParam}$`, "i") },
     })
-      .populate("products.product", "name price")
+      .populate("products.product", "name price image")
       .populate("user", "name email"); // optional, include user info
 
     if (!order) {
@@ -216,6 +218,7 @@ exports.getOrderDetails = async (req, res) => {
       status: order.status,
       totalAmount: order.totalAmount,
       createdAt: order.createdAt,
+      payment: order.payment,
       products: order.products.map((p) => ({
         _id: p.product._id,
         name: p.product.name,
@@ -280,7 +283,7 @@ exports.getUserOrders = async (req, res) => {
 
     const orders = await OrderModel.find({ user: userId }) // correct field
       .populate("user", "name email") // optional
-      .populate("products.product", "name price"); // correct path
+      .populate("products.product", "name price images"); // correct path
 
     res.status(200).json(orders);
   } catch (error) {

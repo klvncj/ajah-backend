@@ -1,13 +1,70 @@
 const UserModel = require("../models/user.model");
 const bcrypt = require("bcryptjs");
-const { sendEmail } = require("../utility/mailer");
+const sendEmail = require("../utility/mailer");
 
-// Example controller function to create a new user
+// Example controller function to create a new user - working version
+// exports.createUser = async (req, res) => {
+//   try {
+//     const { firstname, lastname, email, password, phone } = req.body;
+
+//     // Validate required fields
+//     if (!firstname || !lastname || !email || !password) {
+//       return res
+//         .status(400)
+//         .json({ message: "All required fields must be provided" });
+//     }
+
+//     const emailExists = await UserModel.findOne({ email });
+//     if (emailExists) {
+//       return res.status(400).json({ message: "Email already exists" });
+//     }
+
+//     const hashedPassword = await bcrypt.hash(password, 10);
+
+//     const user = await UserModel.create({
+//       firstname,
+//       lastname,
+//       email,
+//       password: hashedPassword,
+//       phone, // optional
+//     });
+
+//     res.status(201).json({
+//       message: "User created successfully",
+//       userId: user._id,
+//     });
+
+//     await sendEmail({
+//       to: email,
+//       subject: "Welcome to Our Store",
+//       text: `Hi ${firstname},\n\nYour account has been created successfully! You can now login and start shopping.\n\nThanks.`,
+//       html: `
+//   <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.5; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+//     <h2 style="color: #2a9d8f;">Welcome to Our Store, ${firstname}!</h2>
+//     <p>We are thrilled to have you on board. Your account has been successfully created.</p>
+//     <p style="margin-top: 20px;">You can now log in and start shopping:</p>
+//     <a href="https://yourstore.com/login" style="display: inline-block; padding: 10px 20px; background-color: #2a9d8f; color: #fff; text-decoration: none; border-radius: 4px; margin-top: 10px;">Login Now</a>
+//     <p style="margin-top: 30px; font-size: 0.9em; color: #666;">
+//       If you did not sign up for this account, please ignore this email.
+//     </p>
+//     <hr style="margin: 20px 0; border: 0; border-top: 1px solid #e0e0e0;">
+//     <p style="font-size: 0.8em; color: #999;">© 2026 Your Store. All rights reserved.</p>
+//   </div>
+//   `,
+//     });
+//   } catch (error) {
+//     res.status(500).json({
+//       message: "Error creating user",
+//       error: error.message,
+//     });
+//   }
+// };
+
+// Revised controller function to create a new user
 exports.createUser = async (req, res) => {
   try {
     const { firstname, lastname, email, password, phone } = req.body;
 
-    // Validate required fields
     if (!firstname || !lastname || !email || !password) {
       return res
         .status(400)
@@ -26,20 +83,40 @@ exports.createUser = async (req, res) => {
       lastname,
       email,
       password: hashedPassword,
-      phone, // optional
+      phone,
     });
 
-    await sendEmail({
-      to: email,
-      subject: "Welcome to Our Store",
-      text: `Hi ${firstname},\n\nYour account has been created successfully! You can now login and start shopping.\n\nThanks.`,
-      html: `<p>Hi ${firstname},</p><p>Your account has been created successfully! You can now login and start shopping.</p>`,
-    });
-
+    // Send response immediately
     res.status(201).json({
       message: "User created successfully",
       userId: user._id,
     });
+
+    // Send email asynchronously (fire-and-forget)
+    sendEmail({
+      to: email,
+      subject: "Welcome to Our Store",
+      text: `Hi ${firstname},\n\nYour account has been created successfully! You can now login and start shopping.\n\nThanks.`,
+     html: `
+<div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; max-width: 600px; margin: 40px auto; padding: 0; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden; border: 1px solid #e0e0e0;">
+  <div style="background-color: #2a9d8f; color: #fff; padding: 30px 20px; text-align: center;">
+    <h1 style="margin: 0; font-size: 28px;">Welcome, ${firstname}!</h1>
+  </div>
+  <div style="padding: 30px 20px; background-color: #fff;">
+    <p style="font-size: 16px; margin: 0 0 15px;">We’re excited to have you on board. Your account has been successfully created.</p>
+    <p style="font-size: 16px; margin: 0 0 25px;">Click the button below to log in and start shopping:</p>
+    <div style="text-align: center;">
+      <a href="https://yourstore.com/login" style="display: inline-block; padding: 12px 25px; background-color: #e76f51; color: #fff; text-decoration: none; font-weight: bold; border-radius: 5px;">Login Now</a>
+    </div>
+    <p style="margin-top: 30px; font-size: 13px; color: #666;">If you did not sign up for this account, please ignore this email.</p>
+  </div>
+  <div style="background-color: #f4f4f4; text-align: center; padding: 15px 20px; font-size: 12px; color: #999;">
+    © 2026 Your Store. All rights reserved.
+  </div>
+</div>
+`
+
+    }).catch((err) => console.error("Error sending welcome email:", err));
   } catch (error) {
     res.status(500).json({
       message: "Error creating user",

@@ -1,33 +1,33 @@
 const nodemailer = require("nodemailer");
 
-// Create a transporter object using SMTP transport
+// transporter
 const transporter = nodemailer.createTransport({
-  service: 'outlook', 
+  host: process.env.SMTP_HOST,
+  port: process.env.SMTP_PORT,
   auth: {
-    user: process.env.SMTP_USER,      // your email
-    pass: process.env.SMTP_PASS     // Gmail requires App Password if 2FA is on
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS
   }
 });
 
-// Function to send an email
-async function sendEmail(to, subject, text, html) {
+// sendEmail function
+const sendEmail = async ({ to, subject, text, html }) => {
   const mailOptions = {
-    from: process.env.SMTP_FROM_EMAIL,
+    from: '"My Store" <test@example.com>',
     to,
     subject,
     text,
     html,
   };
+
   try {
     const info = await transporter.sendMail(mailOptions);
-    console.log("Email sent: " + info.response);
+    console.log("Email sent:", info.response);
     return info;
   } catch (error) {
     console.error("Error sending email:", error);
     throw error;
   }
-}
-
-module.exports = {
-  sendEmail,
 };
+
+module.exports = sendEmail;  // <-- export the function directly
