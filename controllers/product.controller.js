@@ -353,7 +353,7 @@ exports.getLatestProducts = async (req, res) => {
       .find()
       .populate("category", "name")
       .sort({ createdAt: -1 })
-      .limit(20);
+      .limit(10);
 
     const formatted = products.map((p) => ({
       ...p._doc,

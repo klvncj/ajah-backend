@@ -14,6 +14,10 @@ router.delete("/delete/:id", userController.deleteUser);
 router.get("/", userController.getAllUsers);
 // Route to get latest registered users
 router.get("/latest", userController.getLatestUsers);
+// Route to check if user has delivery details
+router.get("/delivery-details/:id", userController.hasDeliveryDetails);
+// Route to Check User existence by Id 
+router.get("/exists/:id", userController.isUser);
 
 
 module.exports = router;

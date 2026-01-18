@@ -11,6 +11,7 @@ const productRoutes = require("./routes/product.route");
 const categoryRoutes = require("./routes/category.route");
 const orderRoutes = require("./routes/order.route");
 const analyticsRoutes = require("./routes/analytics.route");
+const authRoutes = require("./routes/auth.route");
 
 const allowedOrigins = ["http://localhost:5173", "http://localhost:5174"];
 
@@ -24,10 +25,21 @@ app.use(
       }
     },
     credentials: true,
-  })
+  }),
 );
 
 app.use(express.json());
+
+app.use((err, req, res, next) => {
+  if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
+    console.error("JSON Syntax Error:", err.message);
+    console.error("Invalid Body:", err.body); // Log the body to see what's wrong
+    return res
+      .status(400)
+      .json({ message: "Invalid JSON format", error: err.message });
+  }
+  next();
+});
 
 const connectionState = mongoose.connection.readyState;
 
@@ -53,6 +65,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/auth", authRoutes);
 
 // api listening
 app.get("/", (req, res) => {

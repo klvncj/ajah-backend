@@ -17,55 +17,98 @@ exports.createOrder = async (req, res) => {
       return res.status(400).json({ message: "No products provided" });
     }
 
-    // Validate products exist and have sufficient stock
+    let validUser = null;
+    let finalShippingAddress = shippingAddress;
+
+    /* ---------------- USER VALIDATION ---------------- */
+
+    if (user) {
+      validUser = await UserModel.findById(user);
+
+      if (!validUser) {
+        return res.status(400).json({ message: "Invalid user ID" });
+      }
+
+      const hasSavedAddress =
+        validUser.address &&
+        validUser.state &&
+        validUser.country &&
+        validUser.email &&
+        validUser.phone;
+
+      // Use saved address ONLY if frontend did NOT send one
+      if (!shippingAddress && hasSavedAddress) {
+        finalShippingAddress = {
+          fullName: validUser.name,
+          email: validUser.email,
+          phone: validUser.phone,
+          address: validUser.address,
+          state: validUser.state,
+          country: validUser.country,
+        };
+      }
+    }
+
+    if (!finalShippingAddress) {
+      return res.status(400).json({
+        message: "Shipping address is required",
+      });
+    }
+
+    /* ---------------- PRODUCT VALIDATION ---------------- */
+
     for (const item of products) {
       const productData = await ProductModel.findById(item.product);
+
       if (!productData) {
-        return res.status(400).json({ 
-          message: `Product not found: ${item.product}` 
+        return res.status(400).json({
+          message: `Product not found: ${item.product}`,
         });
       }
-      if (!productData.stock || productData.stock < item.quantity) {
-        return res.status(400).json({ 
-          message: `Insufficient stock for product: ${productData.name}. Available: ${productData.stock || 0}, Requested: ${item.quantity}` 
+
+      if (productData.stock < item.quantity) {
+        return res.status(400).json({
+          message: `Insufficient stock for ${productData.name}`,
         });
       }
     }
 
-    // Build products array with verified prices
+    /* ---------------- BUILD ORDER ITEMS ---------------- */
+
     const productsWithPrice = await Promise.all(
       products.map(async (item) => {
         const productData = await ProductModel.findById(item.product).select(
-          "price"
+          "price",
         );
-        if (!productData) {
-          throw new Error(`Product not found: ${item.product}`);
-        }
+
         if (item.quantity < 1) {
-          throw new Error(`Invalid quantity for product: ${item.product}`);
+          throw new Error("Invalid quantity");
         }
+
         return {
           product: item.product,
           quantity: item.quantity,
           priceAtPurchase: productData.price,
           variation: item.variation || null,
         };
-      })
+      }),
     );
 
-    // Calculate total amount
+    /* ---------------- TOTAL ---------------- */
+
     const totalAmount = productsWithPrice.reduce(
       (sum, item) => sum + item.quantity * item.priceAtPurchase,
-      0
+      0,
     );
 
-    // Create order with safe orderId
+    /* ---------------- CREATE ORDER ---------------- */
+
     const newOrder = new OrderModel({
       orderId: generateOrderId(),
-      user,
+      user: validUser ? validUser._id : null,
       products: productsWithPrice,
       status: status || "pending",
-      shippingAddress,
+      shippingAddress: finalShippingAddress,
       payment,
       totalAmount,
     });
@@ -74,7 +117,7 @@ exports.createOrder = async (req, res) => {
 
     res.status(201).json({
       message: "Order created successfully",
-      orderId: savedOrder.orderId, // public-facing ID
+      orderId: savedOrder.orderId,
     });
   } catch (error) {
     console.error("Create Order Error:", error);
@@ -159,7 +202,7 @@ exports.getOrderDetails = async (req, res) => {
   try {
     const order = await OrderModel.findById(req.params.id).populate(
       "products.product", // use the actual field in your schema
-      "name price"
+      "name price",
     );
 
     if (!order) {
@@ -198,7 +241,7 @@ exports.updateOrderStatus = async (req, res) => {
     const updatedOrder = await OrderModel.findByIdAndUpdate(
       orderId,
       { status },
-      { new: true }
+      { new: true },
     );
     if (!updatedOrder) {
       return res.status(404).json({ message: "Order not found" });
@@ -234,22 +277,26 @@ exports.deleteOrder = async (req, res) => {
 exports.getUserOrders = async (req, res) => {
   try {
     const userId = req.params.userId;
-    const orders = await OrderModel.find({
-      userId,
-    }).populate("products.productId", "name price");
+
+    const orders = await OrderModel.find({ user: userId }) // correct field
+      .populate("user", "name email") // optional
+      .populate("products.product", "name price"); // correct path
+
     res.status(200).json(orders);
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching user orders", error: error.message });
+    res.status(500).json({
+      message: "Error fetching user orders",
+      error: error.message,
+    });
   }
 };
+
 // Controller function to get all orders (admin)
 exports.getAllOrders = async (req, res) => {
   try {
     const orders = await OrderModel.find().populate(
       "products.product",
-      "name price"
+      "name price",
     );
     res.status(200).json(orders);
   } catch (error) {

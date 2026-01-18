@@ -23,14 +23,16 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      required: [true, "Phone number is required"],
       unique: true,
+      required: [true, "Phone number is required"],
+      default: null,
       trim: true,
       validate: {
-        validator: (v) => /^[+]?[\d\s\-]{7,15}$/.test(v),
-        message: (props) => `${props.value} is not a valid phone number!`,
+        validator: (v) => !v || /^[+]?[\d\s\-]{7,15}$/.test(v),
+        message: "Invalid phone number",
       },
     },
+
     country: {
       type: String,
       default: "",
@@ -57,9 +59,8 @@ const userSchema = new mongoose.Schema(
       default: "user",
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
-
 
 // Compare password method
 userSchema.methods.comparePassword = async function (candidatePassword) {
@@ -67,4 +68,3 @@ userSchema.methods.comparePassword = async function (candidatePassword) {
 };
 
 module.exports = mongoose.model("User", userSchema);
-

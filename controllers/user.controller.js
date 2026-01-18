@@ -1,39 +1,50 @@
 const UserModel = require("../models/user.model");
 const bcrypt = require("bcryptjs");
+const { sendEmail } = require("../utility/mailer");
 
 // Example controller function to create a new user
 exports.createUser = async (req, res) => {
   try {
-    const {
-      firstname,
-      lastname,
-      email,
-      phone,
-      password,
-      country,
-      state,
-      address,
-    } = req.body;
+    const { firstname, lastname, email, password, phone } = req.body;
+
+    // Validate required fields
+    if (!firstname || !lastname || !email || !password) {
+      return res
+        .status(400)
+        .json({ message: "All required fields must be provided" });
+    }
+
+    const emailExists = await UserModel.findOne({ email });
+    if (emailExists) {
+      return res.status(400).json({ message: "Email already exists" });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new UserModel({
+    const user = await UserModel.create({
       firstname,
       lastname,
       email,
-      phone,
       password: hashedPassword,
-      country,
-      state,
-      address,
+      phone, // optional
     });
-    const savedUser = await newUser.save();
-    res
-      .status(201)
-      .json({ message: "User created successfully", userId: savedUser._id });
+
+    await sendEmail({
+      to: email,
+      subject: "Welcome to Our Store",
+      text: `Hi ${firstname},\n\nYour account has been created successfully! You can now login and start shopping.\n\nThanks.`,
+      html: `<p>Hi ${firstname},</p><p>Your account has been created successfully! You can now login and start shopping.</p>`,
+    });
+
+    res.status(201).json({
+      message: "User created successfully",
+      userId: user._id,
+    });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error creating user", error: error.message });
+    res.status(500).json({
+      message: "Error creating user",
+      error: error.message,
+    });
   }
 };
 
@@ -78,9 +89,8 @@ exports.updateUser = async (req, res) => {
 exports.deleteUser = async (req, res) => {
   try {
     const userId = req.params.id;
-    const deletedUser = await UserModel.findByIdAndDelete(userId).select(
-      "-password"
-    );
+    const deletedUser =
+      await UserModel.findByIdAndDelete(userId).select("-password");
     if (!deletedUser) {
       return res.status(404).json({ message: "User not found" });
     }
@@ -128,11 +138,75 @@ exports.getUsersPaginated = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
-    const users = await UserModel.find().skip(skip).limit(limit).select("-password");
+    const users = await UserModel.find()
+      .skip(skip)
+      .limit(limit)
+      .select("-password");
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({
       message: "Error fetching paginated users",
+      error: error.message,
+    });
+  }
+};
+
+exports.hasDeliveryDetails = async (req, res) => {
+  try {
+    const user = await UserModel.findById(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const hasDetails = Boolean(
+      user.country?.trim() && user.state?.trim() && user.address?.trim(),
+    );
+
+    res.status(200).json({ hasDeliveryDetails: hasDetails });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error checking delivery details",
+      error: error.message,
+    });
+  }
+};
+
+exports.isUser = async (req, res) => {
+  const userId = req.params.id;
+  try {
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({ isUser: true });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error checking user role",
+      error: error.message,
+    });
+  }
+};
+
+exports.UpdateDeliveryDetails = async (req, res) => {
+  try {
+    const userId = req.params.id;
+    const { country, state, address } = req.body;
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      userId,
+      { country, state, address },
+      { new: true },
+    ).select("-password");
+    if (!updatedUser) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({
+      message: "Delivery details updated successfully",
+      user: updatedUser,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Error updating delivery details",
       error: error.message,
     });
   }
