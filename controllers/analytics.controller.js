@@ -50,12 +50,28 @@ exports.getSalesData = async (req, res) => {
 
 exports.getTopSellingProducts = async (req, res) => {
   try {
+    const { days = 30 } = req.query;
+
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - Number(days));
+
     const data = await Order.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: fromDate },
+          status: { $ne: "cancelled" },
+        },
+      },
       { $unwind: "$products" },
       {
         $group: {
-          _id: "$products.productId",
+          _id: "$products.product",
           totalSold: { $sum: "$products.quantity" },
+          revenue: {
+            $sum: {
+              $multiply: ["$products.quantity", "$products.priceAtPurchase"],
+            },
+          },
         },
       },
       { $sort: { totalSold: -1 } },
@@ -68,19 +84,29 @@ exports.getTopSellingProducts = async (req, res) => {
           as: "product",
         },
       },
-      { $unwind: "$product" },
+      {
+        $unwind: {
+          path: "$product",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
       {
         $project: {
           productId: "$_id",
           name: "$product.name",
-          price: "$product.price",
+          image: "$product.image",
+          currentPrice: "$product.price",
           totalSold: 1,
+          revenue: 1,
         },
       },
     ]);
 
     res.json(data);
   } catch (e) {
-    res.status(500).json({ message: "Top products error", error: e.message });
+    res.status(500).json({
+      message: "Top products error",
+      error: e.message,
+    });
   }
 };

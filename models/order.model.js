@@ -33,6 +33,14 @@ const orderSchema = new Schema({
       },
     },
   ],
+  subTotal: {
+    type: Number,
+    required: true,
+  },
+  shippingFee: {
+    type: Number,
+    required: true,
+  },
   totalAmount: {
     type: Number,
     required: true,
@@ -69,7 +77,6 @@ const orderSchema = new Schema({
     default: Date.now,
   },
 });
-
 
 const Order = mongoose.model("Order", orderSchema);
 

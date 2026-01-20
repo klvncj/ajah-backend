@@ -42,7 +42,7 @@ exports.authAdmin = async (req, res) => {
     }
     return res
       .status(200)
-      .json({ user, message: "Authentication sucessful" });
+      .json({ user, token: "1234", message: "Authentication successful" });
   } catch (error) {
     res.status(500).json({ error });
   }

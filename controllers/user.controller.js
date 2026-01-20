@@ -63,7 +63,7 @@ const sendEmail = require("../utility/mailer");
 // Revised controller function to create a new user
 exports.createUser = async (req, res) => {
   try {
-    const { firstname, lastname, email, password, phone } = req.body;
+    const { firstname, lastname, email, password, phone , role } = req.body;
 
     if (!firstname || !lastname || !email || !password) {
       return res
@@ -76,7 +76,13 @@ exports.createUser = async (req, res) => {
       return res.status(400).json({ message: "Email already exists" });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 10); 
+
+    // check if role is provided and is 'admin', else default to 'user'
+    let userRole = 'user';
+    if (role && role === 'admin') {
+      userRole = 'admin';
+    } 
 
     const user = await UserModel.create({
       firstname,
@@ -84,6 +90,7 @@ exports.createUser = async (req, res) => {
       email,
       password: hashedPassword,
       phone,
+      role: userRole, // set role based on input or default
     });
 
     // Send response immediately

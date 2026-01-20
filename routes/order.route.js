@@ -8,6 +8,7 @@ const {
     getOrderByOrderId,
     getLatestOrders,
     getUserOrders,
+    getOrderbyOrderId,
 } = require("../controllers/order.controller");
 // Route to create a new order
 router.post("/", createOrder);
@@ -16,9 +17,9 @@ router.get("/", getAllOrders);
 // Route to get order details by ID
 router.get("/details/:id", getOrderDetails);
 // Route to get order details by orderId
-router.get("/details/user/:orderId", getOrderByOrderId);
+router.get("/details/user/:orderId", getOrderbyOrderId);
 // Route to update order status by ID
-router.put("/:id/status", updateOrderStatus);
+router.put("/:id/status", updateOrderStatus); 
 // Route to get latest 20 orders
 router.get("/latest", getLatestOrders);
 // Route to get user orders
