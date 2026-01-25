@@ -2,10 +2,10 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+
 const app = express();
-const PORT = process.env.PORT || 5000;
-const mongoUrl = process.env.MONGODB_URL;
-// routes import
+
+// routes
 const userRoutes = require("./routes/user.route");
 const productRoutes = require("./routes/product.route");
 const categoryRoutes = require("./routes/category.route");
@@ -13,51 +13,68 @@ const orderRoutes = require("./routes/order.route");
 const analyticsRoutes = require("./routes/analytics.route");
 const authRoutes = require("./routes/auth.route");
 
-const allowedOrigins = ["http://localhost:5173", "http://localhost:5174"];
+const mongoUrl = process.env.MONGODB_URL;
 
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+];
+
+// middleware
 app.use(
   cors({
-    origin: function (origin, callback) {
+    origin(origin, callback) {
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error("CORS blocked: Not allowed by policy"));
+        callback(new Error("CORS blocked"));
       }
     },
     credentials: true,
-  }),
+  })
 );
 
 app.use(express.json());
 
+// JSON error guard
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && "body" in err) {
-    console.error("JSON Syntax Error:", err.message);
-    console.error("Invalid Body:", err.body); // Log the body to see what's wrong
-    return res
-      .status(400)
-      .json({ message: "Invalid JSON format", error: err.message });
+    return res.status(400).json({
+      message: "Invalid JSON format",
+      error: err.message,
+    });
   }
   next();
 });
 
-const connectionState = mongoose.connection.readyState;
-
-if (connectionState === 1) {
-  console.log("MongoDB is already connected");
-} else {
-  // connect to DB
-  mongoose
-    .connect(mongoUrl)
-    .then(() => {
-      app.listen(PORT, () => {
-        console.log(`listening on port ${PORT}`);
-      });
-    })
-    .catch((error) => {
-      console.log(error);
-    });
+// Mongo connection cache for serverless
+let cached = global.mongoose;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
 }
+
+async function connectDB() {
+  if (cached.conn) return cached.conn;
+
+  if (!cached.promise) {
+    cached.promise = mongoose
+      .connect(mongoUrl)
+      .then((mongoose) => mongoose);
+  }
+
+  cached.conn = await cached.promise;
+  return cached.conn;
+}
+
+// attach DB per request
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (e) {
+    res.status(500).json({ message: "DB connection failed" });
+  }
+});
 
 // routes
 app.use("/api/users", userRoutes);
@@ -67,12 +84,14 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/auth", authRoutes);
 
-// api listening
+// health
 app.get("/", (req, res) => {
-  res.json("Api is running.....");
+  res.json("API running");
 });
 
-// catch-all route
+// fallback
 app.use((req, res) => {
-  res.status(400).send("Route not found");
+  res.status(404).json({ message: "Route not found" });
 });
+
+module.exports = app;
