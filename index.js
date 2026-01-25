@@ -18,20 +18,26 @@ const mongoUrl = process.env.MONGODB_URL;
 const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
+  process.env.FRONTEND_URL, // Production frontend
 ];
 
 // middleware
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // Allow requests with no origin (server-to-server, Vercel health checks)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error("CORS blocked"));
       }
     },
     credentials: true,
-  })
+  }),
 );
 
 app.use(express.json());
@@ -57,9 +63,7 @@ async function connectDB() {
   if (cached.conn) return cached.conn;
 
   if (!cached.promise) {
-    cached.promise = mongoose
-      .connect(mongoUrl)
-      .then((mongoose) => mongoose);
+    cached.promise = mongoose.connect(mongoUrl).then((mongoose) => mongoose);
   }
 
   cached.conn = await cached.promise;
@@ -72,7 +76,12 @@ app.use(async (req, res, next) => {
     await connectDB();
     next();
   } catch (e) {
-    res.status(500).json({ message: "DB connection failed" });
+    console.error("DB Connection Error:", e);
+    res.status(500).json({
+      message: "DB connection failed",
+      error: e.message,
+      stack: process.env.NODE_ENV === "development" ? e.stack : undefined,
+    });
   }
 });
 
@@ -92,6 +101,15 @@ app.get("/", (req, res) => {
 // fallback
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });
+});
+
+// Global error handler - must be last
+app.use((err, req, res, next) => {
+  console.error("Unhandled Error:", err);
+  res.status(err.status || 500).json({
+    message: err.message || "Internal server error",
+    error: process.env.NODE_ENV === "development" ? err.stack : undefined,
+  });
 });
 
 module.exports = app;
