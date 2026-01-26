@@ -19,6 +19,7 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   process.env.FRONTEND_URL, 
+  process.env.DASHBOARD_URL,
   "https://ajah-eight.vercel.app",
   "https://ajah-dashboard.vercel.app"
   // Production frontend

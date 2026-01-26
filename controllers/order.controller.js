@@ -121,8 +121,7 @@ function generateOrderId() {
 //       totalAmount,
 //     });
 
-//     const savedOrder = await newOrder.save(); 
-
+//     const savedOrder = await newOrder.save();
 
 //     res.status(201).json({
 //       message: "Order created successfully",
@@ -137,11 +136,10 @@ function generateOrderId() {
 //   }
 // };
 
-
-
 exports.createOrder = async (req, res) => {
   try {
-    const { user, products, status, shippingAddress, payment, shippingFee } = req.body;
+    const { user, products, status, shippingAddress, payment, shippingFee } =
+      req.body;
 
     if (!products || !products.length) {
       return res.status(400).json({ message: "No products provided" });
@@ -153,10 +151,15 @@ exports.createOrder = async (req, res) => {
     /* ---------------- USER VALIDATION ---------------- */
     if (user) {
       validUser = await userModel.findById(user);
-      if (!validUser) return res.status(400).json({ message: "Invalid user ID" });
+      if (!validUser)
+        return res.status(400).json({ message: "Invalid user ID" });
 
       const hasSavedAddress =
-        validUser.address && validUser.state && validUser.country && validUser.email && validUser.phone;
+        validUser.address &&
+        validUser.state &&
+        validUser.country &&
+        validUser.email &&
+        validUser.phone;
 
       if (!shippingAddress && hasSavedAddress) {
         finalShippingAddress = {
@@ -177,17 +180,29 @@ exports.createOrder = async (req, res) => {
     /* ---------------- PRODUCT VALIDATION ---------------- */
     for (const item of products) {
       const productData = await ProductModel.findById(item.product);
-      if (!productData) return res.status(400).json({ message: `Product not found: ${item.product}` });
-      if (productData.stock < item.quantity) return res.status(400).json({ message: `Insufficient stock for ${productData.name}` });
+      if (!productData)
+        return res
+          .status(400)
+          .json({ message: `Product not found: ${item.product}` });
+      if (productData.stock < item.quantity)
+        return res
+          .status(400)
+          .json({ message: `Insufficient stock for ${productData.name}` });
     }
 
     /* ---------------- BUILD ORDER ITEMS ---------------- */
     const productsWithPrice = await Promise.all(
       products.map(async (item) => {
-        const productData = await ProductModel.findById(item.product).select("price");
+        const productData = await ProductModel.findById(item.product).select(
+          "name price",
+        );
+
+        if (!productData) throw new Error("Product not found");
         if (item.quantity < 1) throw new Error("Invalid quantity");
+
         return {
-          product: item.product,
+          product: productData._id,
+          productName: productData.name,
           quantity: item.quantity,
           priceAtPurchase: productData.price,
           variation: item.variation || null,
@@ -196,7 +211,10 @@ exports.createOrder = async (req, res) => {
     );
 
     /* ---------------- TOTAL ---------------- */
-    const subTotal = productsWithPrice.reduce((sum, item) => sum + item.quantity * item.priceAtPurchase, 0);
+    const subTotal = productsWithPrice.reduce(
+      (sum, item) => sum + item.quantity * item.priceAtPurchase,
+      0,
+    );
     const totalAmount = subTotal + (shippingFee || 0);
 
     /* ---------------- CREATE ORDER ---------------- */
@@ -233,7 +251,7 @@ exports.createOrder = async (req, res) => {
           <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
             <h3 style="margin: 0 0 10px; font-size: 16px;">Order Summary:</h3>
             <ul style="padding-left: 20px; margin: 0;">
-              ${productsWithPrice.map(p => `<li>${p.quantity} × ${p.product.name} - ₦${p.priceAtPurchase}</li>`).join('')}
+              ${productsWithPrice.map((p) => `<li>${p.quantity} × ${p.productName} - ₦${p.priceAtPurchase}</li>`).join("")}
             </ul>
             <p style="margin-top: 10px; font-weight: bold;">Total: ₦${totalAmount}</p>
           </div>
@@ -255,9 +273,10 @@ exports.createOrder = async (req, res) => {
         subject: `Your Order #${savedOrder.orderId} is Confirmed!`,
         text: `Hi ${finalShippingAddress.fullName}, your order #${savedOrder.orderId} has been placed. Total: $${totalAmount}.`,
         html: orderConfirmationHtml,
-      }).catch(err => console.error("Error sending order confirmation email:", err));
+      }).catch((err) =>
+        console.error("Error sending order confirmation email:", err),
+      );
     }
-
   } catch (error) {
     console.error("Create Order Error:", error);
     res.status(500).json({
@@ -266,8 +285,6 @@ exports.createOrder = async (req, res) => {
     });
   }
 };
-
-
 
 exports.getOrderbyOrderId = async (req, res) => {
   const OrderId = req.params.orderId;
@@ -322,8 +339,8 @@ exports.getOrderDetails = async (req, res) => {
       totalAmount: order.totalAmount,
       createdAt: order.createdAt,
       payment: order.payment,
-      subTotal : order.subTotal, 
-      shippingFee : order.shippingFee, 
+      subTotal: order.subTotal,
+      shippingFee: order.shippingFee,
       products: order.products.map((p) => ({
         _id: p.product._id,
         name: p.product.name,
@@ -421,8 +438,8 @@ exports.getLatestOrders = async (req, res) => {
     const orders = await OrderModel.find()
       .sort({ createdAt: -1 })
       .limit(20)
-      .populate("products.product", "name price"); 
-      
+      .populate("products.product", "name price");
+
     res.status(200).json(orders);
   } catch (error) {
     res.status(500).json({
