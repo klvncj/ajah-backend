@@ -240,32 +240,141 @@ exports.createOrder = async (req, res) => {
 
     // ---------------- SEND ORDER CONFIRMATION EMAIL ----------------
     if (finalShippingAddress.email) {
+      const formatPrice = (n) =>
+        Number(n).toLocaleString("en-NG", { minimumFractionDigits: 2 });
+
       const orderConfirmationHtml = `
-      <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #333; max-width: 600px; margin: 40px auto; border-radius: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); overflow: hidden; border: 1px solid #e0e0e0;">
-        <div style="background-color: #2a9d8f; color: #fff; padding: 30px 20px; text-align: center;">
-          <h1 style="margin: 0; font-size: 28px;">Order Confirmed!</h1>
-        </div>
-        <div style="padding: 30px 20px; background-color: #fff;">
-          <p style="font-size: 16px; margin: 0 0 15px;">Hi ${finalShippingAddress.fullName},</p>
-          <p style="font-size: 16px; margin: 0 0 25px;">Thank you for your order. Your order <strong>#${savedOrder.orderId}</strong> has been successfully placed and is on the way!</p>
-          <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; margin-bottom: 20px;">
-            <h3 style="margin: 0 0 10px; font-size: 16px;">Order Summary:</h3>
-            <ul style="padding-left: 20px; margin: 0;">
-              ${productsWithPrice.map((p) => `<li>${p.quantity} × ${p.productName} - ₦${p.priceAtPurchase}</li>`).join("")}
-            </ul>
-            <p style="margin-top: 10px; font-weight: bold;">Total: ₦${totalAmount}</p>
-          </div>
-          <p style="font-size: 16px; margin: 0 0 25px;">You can track your order and manage your account by clicking the button below:</p>
-          <div style="text-align: center;">
-            <a href="https://ajahmart.com/orders/${savedOrder.orderId}" style="display: inline-block; padding: 12px 25px; background-color: #e76f51; color: #fff; text-decoration: none; font-weight: bold; border-radius: 5px;">View Your Order</a>
-          </div>
-          <p style="margin-top: 30px; font-size: 13px; color: #666;">If you did not place this order, please contact our support immediately.</p>
-        </div>
-        <div style="background-color: #f4f4f4; text-align: center; padding: 15px 20px; font-size: 12px; color: #999;">
-          © 2026 Your Store. All rights reserved.
-        </div>
+<div style="font-family: Arial, Helvetica, sans-serif; background:#f5f5f5; padding:40px 0;">
+  <div style="max-width:700px; margin:0 auto; background:#ffffff; border-radius:8px; overflow:hidden; border:1px solid #e5e7eb;">
+    
+    <!-- HEADER -->
+    <div style="background:#2a9d8f; padding:24px; text-align:center; color:#ffffff;">
+      <h1 style="margin:0; font-size:26px;">Order Confirmed</h1>
+      <p style="margin:6px 0 0; font-size:14px;">
+        Order #${savedOrder.orderId}
+      </p>
+    </div>
+
+    <!-- BODY -->
+    <div style="padding:24px;">
+      <p style="font-size:15px; margin:0 0 16px;">
+        Hi ${finalShippingAddress.fullName},
+      </p>
+
+      <p style="font-size:15px; margin:0 0 24px;">
+        Thank you for your order. Below is a full breakdown of your purchase.
+      </p>
+
+      <!-- ORDER ITEMS -->
+      <h3 style="margin:0 0 12px; font-size:16px;">Order Items</h3>
+      <div style="border:1px solid #e5e7eb; border-radius:6px; overflow:hidden;">
+        <table width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse; font-size:14px;">
+          <thead style="background:#f9fafb;">
+            <tr>
+              <th align="left" style="padding:12px; border-bottom:1px solid #e5e7eb;">Product</th>
+              <th align="center" style="padding:12px; border-bottom:1px solid #e5e7eb;">Qty</th>
+              <th align="right" style="padding:12px; border-bottom:1px solid #e5e7eb;">Unit</th>
+              <th align="right" style="padding:12px; border-bottom:1px solid #e5e7eb;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${productsWithPrice
+              .map(
+                (item) => `
+              <tr>
+                <td style="padding:12px; border-bottom:1px solid #f0f0f0;">
+                  <strong>${item.productName}</strong>
+                </td>
+                <td align="center" style="padding:12px; border-bottom:1px solid #f0f0f0;">
+                  ${item.quantity}
+                </td>
+                <td align="right" style="padding:12px; border-bottom:1px solid #f0f0f0;">
+                  ₦${formatPrice(item.priceAtPurchase)}
+                </td>
+                <td align="right" style="padding:12px; border-bottom:1px solid #f0f0f0;">
+                  ₦${formatPrice(item.priceAtPurchase * item.quantity)}
+                </td>
+              </tr>
+            `,
+              )
+              .join("")}
+          </tbody>
+          <tfoot style="background:#f9fafb;">
+            <tr>
+              <td colspan="3" align="right" style="padding:10px; font-weight:600;">
+                Subtotal
+              </td>
+              <td align="right" style="padding:10px; font-weight:600;">
+                ₦${formatPrice(subTotal)}
+              </td>
+            </tr>
+            <tr>
+              <td colspan="3" align="right" style="padding:10px; font-weight:600;">
+                Shipping Fee
+              </td>
+              <td align="right" style="padding:10px; font-weight:600;">
+                ₦${formatPrice(shippingFee || 0)}
+              </td>
+            </tr>
+            <tr>
+              <td colspan="3" align="right" style="padding:14px; font-size:16px; font-weight:700;">
+                Total
+              </td>
+              <td align="right" style="padding:14px; font-size:16px; font-weight:700;">
+                ₦${formatPrice(totalAmount)}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
       </div>
-      `;
+
+      <!-- PAYMENT INFO -->
+      <h3 style="margin:28px 0 12px; font-size:16px;">Payment Information</h3>
+      <div style="border:1px solid #e5e7eb; border-radius:6px; padding:16px; font-size:14px;">
+        <p style="margin:0 0 8px;">
+          <strong>Method:</strong> ${
+            payment?.method?.replace(/_/g, " ") || "Not specified"
+          }
+        </p>
+        <p style="margin:0 0 8px;">
+          <strong>Status:</strong> ${payment?.paid ? "Paid" : "Unpaid"}
+        </p>
+        ${
+          payment?.transactionId
+            ? `<p style="margin:0;"><strong>Transaction ID:</strong> ${payment.transactionId}</p>`
+            : ""
+        }
+      </div>
+
+      <!-- SHIPPING INFO -->
+      <h3 style="margin:28px 0 12px; font-size:16px;">Shipping Address</h3>
+      <div style="border:1px solid #e5e7eb; border-radius:6px; padding:16px; font-size:14px;">
+        <p style="margin:0; font-weight:600;">${finalShippingAddress.fullName}</p>
+        <p style="margin:4px 0 0;">${finalShippingAddress.address}</p>
+        <p style="margin:4px 0 0;">
+          ${finalShippingAddress.state}, ${finalShippingAddress.country}
+        </p>
+        <p style="margin:4px 0 0;">${finalShippingAddress.phone}</p>
+      </div>
+
+      <!-- CTA -->
+      <div style="text-align:center; margin:32px 0 0;">
+        <a
+          href="https://ajahmart.com/orders/${savedOrder.orderId}"
+          style="display:inline-block; padding:12px 28px; background:#e76f51; color:#ffffff; text-decoration:none; font-weight:600; border-radius:6px;"
+        >
+          View Order
+        </a>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div style="background:#f3f4f6; padding:14px; text-align:center; font-size:12px; color:#6b7280;">
+      © 2026 AjahMart. All rights reserved.
+    </div>
+  </div>
+</div>
+`;
 
       // fire-and-forget
       sendEmail({
@@ -359,26 +468,81 @@ exports.getOrderDetails = async (req, res) => {
 };
 
 // Controller function to update order status
+// exports.updateOrderStatus = async (req, res) => {
+//   try {
+//     const orderId = req.params.id;
+//     const { status } = req.body;
+//     const updatedOrder = await OrderModel.findByIdAndUpdate(
+//       orderId,
+//       { status },
+//       { new: true },
+//     );
+//     if (!updatedOrder) {
+//       return res.status(404).json({ message: "Order not found" });
+//     }
+//     res.status(200).json({
+//       message: "Order status updated successfully",
+//       order: updatedOrder,
+//     });
+//   } catch (error) {
+//     res
+//       .status(500)
+//       .json({ message: "Error updating order status", error: error.message });
+//   }
+// };
+
 exports.updateOrderStatus = async (req, res) => {
   try {
     const orderId = req.params.id;
     const { status } = req.body;
-    const updatedOrder = await OrderModel.findByIdAndUpdate(
-      orderId,
-      { status },
-      { new: true },
-    );
-    if (!updatedOrder) {
+
+    if (!status) {
+      return res.status(400).json({ message: "Status is required" });
+    }
+
+    // 1. Fetch order first
+    const order = await OrderModel.findById(orderId);
+    if (!order) {
       return res.status(404).json({ message: "Order not found" });
     }
+
+    // 2. Exit early if no real change
+    if (order.status === status) {
+      return res.status(200).json({
+        message: "Status unchanged",
+        order,
+      });
+    }
+
+    const previousStatus = order.status;
+
+    // 3. Update
+    order.status = status;
+    order.updatedAt = new Date();
+    const updatedOrder = await order.save();
+
+    // 4. Respond immediately
     res.status(200).json({
       message: "Order status updated successfully",
       order: updatedOrder,
     });
+
+    // 5. Fire email asynchronously
+    if (order.shippingAddress?.email) {
+      const html = getStatusEmailHtml(updatedOrder, previousStatus);
+
+      sendEmail({
+        to: order.shippingAddress.email,
+        subject: `Order #${order.orderId} status updated`,
+        text: `Your order status changed from ${previousStatus} to ${status}.`,
+        html,
+      }).catch((err) => console.error("Order status email failed:", err));
+    }
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error updating order status", error: error.message });
+    res.status(500).json({
+      message: "Error updating order status",
+      error: error.message,
+    });
   }
 };
 
