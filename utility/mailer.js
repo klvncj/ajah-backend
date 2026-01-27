@@ -6,8 +6,8 @@ const transporter = nodemailer.createTransport({
   port: process.env.SMTP_PORT,
   auth: {
     user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS
-  }
+    pass: process.env.SMTP_PASS,
+  },
 });
 
 // sendEmail function
@@ -57,7 +57,7 @@ const getStatusEmailHtml = (order, previousStatus) => {
   `;
 };
 
-
-
-
-module.exports = {sendEmail, getStatusEmailHtml};  // <-- export the function directly
+module.exports = {
+  sendEmail,
+  getStatusEmailHtml,
+};
