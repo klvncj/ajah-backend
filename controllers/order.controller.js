@@ -635,7 +635,7 @@ exports.createOrder = async (req, res) => {
       <!-- CTA -->
       <div style="text-align:center; margin:32px 0 0;">
         <a
-          href="https://ajahmart.com/orders/${savedOrder.orderId}"
+          href="https://ajah-eight.vercel/checkout/completed/${savedOrder.orderId}"
           style="display:inline-block; padding:12px 28px; background:#e76f51; color:#ffffff; text-decoration:none; font-weight:600; border-radius:6px;"
         >
           View Order
