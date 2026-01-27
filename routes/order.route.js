@@ -9,6 +9,7 @@ const {
     getLatestOrders,
     getUserOrders,
     getOrderbyOrderId,
+    deleteOrder,
 } = require("../controllers/order.controller");
 // Route to create a new order
 router.post("/", createOrder);
@@ -24,5 +25,7 @@ router.put("/:id/status", updateOrderStatus);
 router.get("/latest", getLatestOrders);
 // Route to get user orders
 router.get("/user/:userId", getUserOrders);
+// Route to delete order
+router.delete("/:id", deleteOrder);
 
 module.exports = router;

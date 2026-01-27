@@ -729,6 +729,7 @@ exports.getOrderDetails = async (req, res) => {
       payment: order.payment,
       subTotal: order.subTotal,
       shippingFee: order.shippingFee,
+      shippingAddress: order.shippingAddress,
       products: order.products.map((p) => ({
         _id: p.product._id,
         name: p.product.name,
