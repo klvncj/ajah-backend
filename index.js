@@ -11,6 +11,7 @@ const productRoutes = require("./routes/product.route");
 const categoryRoutes = require("./routes/category.route");
 const orderRoutes = require("./routes/order.route");
 const analyticsRoutes = require("./routes/analytics.route");
+const storeRoutes = require("./routes/store.route");
 const authRoutes = require("./routes/auth.route");
 
 const mongoUrl = process.env.MONGODB_URL;
@@ -95,6 +96,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/analytics", analyticsRoutes);
+app.use("/api/stores", storeRoutes);
 app.use("/api/auth", authRoutes);
 
 // health
