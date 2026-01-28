@@ -57,7 +57,6 @@ const storeSchema = new mongoose.Schema({
     },
     zipCode: {
         type: String,
-        required: true
     },
     phone: {
         type: String,
@@ -73,7 +72,6 @@ const storeSchema = new mongoose.Schema({
     owner: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
-        required: true
     },
     
 
