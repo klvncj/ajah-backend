@@ -18,7 +18,7 @@ const mongoUrl = process.env.MONGODB_URL;
 
 const allowedOrigins = [
   "http://localhost:5173",
-  "https://www.ajamart.store/",
+  "https://www.ajamart.store",
   process.env.FRONTEND_URL, 
   process.env.DASHBOARD_URL,
   "https://ajah-eight.vercel.app",
