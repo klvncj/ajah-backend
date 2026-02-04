@@ -22,6 +22,9 @@ const allowedOrigins = [
   process.env.DASHBOARD_URL,
   process.env.TEST_URL,
   process.env.TEST_DASHBOARD_URL,
+  "https://ajah-eight.vercel.app",
+  "https://honorine.vercel.app",
+  "https://ajah-dashboard.vercel.app",
   // Production frontend
 ];
 
