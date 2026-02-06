@@ -13,7 +13,7 @@ const {
   getOrderbyOrderId,
   deleteOrder,
 } = require("../controllers/order.controller");
-// Route to create a new order (handles both online card payment and COD)
+// Route to create a new order (handles both online card payment and COD.)
 router.post("/", checkout, verifyCheckout, createOrder);
 // Route to get all orders
 router.get("/", getAllOrders);
