@@ -2,6 +2,12 @@ const OrderModel = require("../models/order.model");
 const ProductModel = require("../models/product.model");
 const crypto = require("crypto"); // for generating secure orderId
 const userModel = require("../models/user.model");
+const TransactionModel = require("../models/transaction");
+const {
+  generatePaymentLink,
+  verifyPayment,
+} = require("../utility/flutterwave");
+const { withTransaction } = require("../utility/dbTransaction");
 const { sendEmail, getStatusEmailHtml } = require("../utility/mailer");
 
 // Utility to generate a random, readable order number
@@ -394,13 +400,16 @@ function generateOrderId() {
 //   }
 // };
 
-//
 
-
-// Order creation controller
-exports.createOrder = async (req, res) => {
+// Checkout middleware
+exports.checkout = async (req, res, next) => {
   try {
     const { user, products, shippingAddress, payment, shippingFee } = req.body;
+
+    // Only handle if card payment and no transaction ID (initialization)
+    if (payment?.method !== "card" || req.body.transaction_id) {
+      return next();
+    }
 
     if (!products || !products.length) {
       return res.status(400).json({ message: "No products provided" });
@@ -483,40 +492,180 @@ exports.createOrder = async (req, res) => {
 
     const totalAmount = subTotal + (shippingFee || 0);
 
-    /* ---------------- CREATE ORDER ---------------- */
-    const newOrder = new OrderModel({
-      orderId: generateOrderId(),
-      user: validUser ? validUser._id : null,
-      products: productsWithPrice,
-      status: "pending", // force initial state
-      shippingAddress: finalShippingAddress,
-      payment,
-      subTotal,
-      shippingFee: shippingFee || 0,
-      totalAmount,
+    const tx_ref = `txn_${Date.now()}_${user || "guest"}`;
+
+    // Store transient order data
+    await TransactionModel.create({
+      tx_ref,
+      orderData: {
+        user: validUser ? validUser._id : null,
+        products: productsWithPrice,
+        shippingAddress: finalShippingAddress,
+        subTotal,
+        shippingFee: shippingFee || 0,
+        totalAmount,
+      },
     });
 
-    const savedOrder = await newOrder.save();
+    // Generate Flutterwave link
+    const paymentLink = await generatePaymentLink({
+      amount: totalAmount,
+      currency: "NGN",
+      email: finalShippingAddress.email,
+      name: finalShippingAddress.fullName,
+      tx_ref,
+      redirect_url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/checkout/verify?tx_ref=${tx_ref}`,
+    });
 
-    /* ---------------- DECREMENT STOCK ---------------- */
-    await Promise.all(
-      productsWithPrice.map((item) =>
-        ProductModel.findByIdAndUpdate(item.product, {
-          $inc: { stock: -item.quantity },
-        }),
-      ),
-    );
+    return res.status(200).json({
+      message: "Payment link generated",
+      link: paymentLink.link,
+      tx_ref,
+    });
+  } catch (error) {
+    console.error("Checkout Error:", error);
+    res.status(500).json({
+      message: "Error during checkout initialization",
+      error: error.message,
+    });
+  }
+};
+
+// Verify checkout middleware
+exports.verifyCheckout = async (req, res, next) => {
+  try {
+    const { transaction_id } = req.body;
+
+    if (!transaction_id) {
+      return next();
+    }
+
+    const verificationData = await verifyPayment(transaction_id);
+
+    if (!verificationData || verificationData.status !== "successful") {
+      return res.status(400).json({ message: "Payment verification failed" });
+    }
+
+    // Retrieve order data
+    const transactionRecord = await TransactionModel.findOne({
+      tx_ref: verificationData.tx_ref,
+    });
+
+    if (!transactionRecord) {
+      return res.status(404).json({ message: "Transaction record not found" });
+    }
+
+    if (transactionRecord.status === "successful") {
+      return res.status(400).json({ message: "Order already processed" });
+    }
+
+    // Populate req.body with saved order data
+    req.body = {
+      ...transactionRecord.orderData,
+      payment: {
+        method: "card",
+        transactionId: transaction_id,
+        paid: true,
+      },
+      tx_ref: verificationData.tx_ref,
+    };
+
+    next();
+  } catch (error) {
+    console.error("Verify Checkout Error:", error);
+    res.status(500).json({
+      message: "Error during payment verification",
+      error: error.message,
+    });
+  }
+};
+
+// Order creation controller
+exports.createOrder = async (req, res) => {
+  try {
+    const { user, products, shippingAddress, payment, shippingFee, tx_ref } =
+      req.body;
+
+    // Use transaction for ACID compliance
+    const result = await withTransaction(async (session) => {
+      // 1. Double check stock inside transaction
+      const productsWithPrice = [];
+      for (const item of products) {
+        const productData = await ProductModel.findById(item.product).session(
+          session,
+        );
+        if (!productData) throw new Error(`Product not found: ${item.product}`);
+        if (productData.stock < item.quantity) {
+          throw new Error(`Insufficient stock for ${productData.name}`);
+        }
+
+        productsWithPrice.push({
+          product: productData._id,
+          productName: productData.name,
+          quantity: item.quantity,
+          priceAtPurchase: productData.price,
+          variation: item.variation || null,
+        });
+
+        // 2. Decrement stock
+        productData.stock -= item.quantity;
+        await productData.save({ session });
+      }
+
+      const subTotal = productsWithPrice.reduce(
+        (sum, item) => sum + item.quantity * item.priceAtPurchase,
+        0,
+      );
+      const totalAmount = subTotal + (shippingFee || 0);
+
+      // 3. Create Order
+      const newOrder = new OrderModel({
+        orderId: generateOrderId(),
+        user: user || null,
+        products: productsWithPrice,
+        status: "pending",
+        shippingAddress,
+        payment: {
+          ...payment,
+          paid: payment?.paid || false,
+        },
+        subTotal,
+        shippingFee: shippingFee || 0,
+        totalAmount,
+      });
+
+      const savedOrder = await newOrder.save({ session });
+
+      // 4. Update Transaction status if applicable
+      if (tx_ref) {
+        await TransactionModel.findOneAndUpdate(
+          { tx_ref },
+          { status: "successful", flw_ref: payment?.transactionId },
+          { session },
+        );
+      }
+
+      return savedOrder;
+    });
 
     /* ---------------- RESPONSE ---------------- */
     res.status(201).json({
       message: "Order created successfully",
-      orderId: savedOrder.orderId,
+      orderId: result.orderId,
     });
 
     /* ---------------- SEND EMAIL (FIRE AND FORGET) ---------------- */
-    if (typeof sendEmail === "function" && finalShippingAddress.email) {
+    if (typeof sendEmail === "function" && result.shippingAddress?.email) {
       const formatPrice = (n) =>
         Number(n).toLocaleString("en-NG", { minimumFractionDigits: 2 });
+
+      const productsWithPrice = result.products;
+      const subTotal = result.subTotal;
+      const totalAmount = result.totalAmount;
+      const shippingFee = result.shippingFee;
+      const payment = result.payment;
+      const finalShippingAddress = result.shippingAddress;
+      const savedOrder = result;
 
       const orderConfirmationHtml = `
 <div style="font-family: Arial, Helvetica, sans-serif; background:#f5f5f5; padding:40px 0;">
@@ -554,8 +703,8 @@ exports.createOrder = async (req, res) => {
           </thead>
           <tbody>
             ${productsWithPrice
-              .map(
-                (item) => `
+          .map(
+            (item) => `
               <tr>
                 <td style="padding:12px; border-bottom:1px solid #f0f0f0;">
                   <strong>${item.productName}</strong>
@@ -571,8 +720,8 @@ exports.createOrder = async (req, res) => {
                 </td>
               </tr>
             `,
-              )
-              .join("")}
+          )
+          .join("")}
           </tbody>
           <tfoot style="background:#f9fafb;">
             <tr>
@@ -607,17 +756,15 @@ exports.createOrder = async (req, res) => {
       <h3 style="margin:28px 0 12px; font-size:16px;">Payment Information</h3>
       <div style="border:1px solid #e5e7eb; border-radius:6px; padding:16px; font-size:14px;">
         <p style="margin:0 0 8px;">
-          <strong>Method:</strong> ${
-            payment?.method?.replace(/_/g, " ") || "Not specified"
-          }
+          <strong>Method:</strong> ${payment?.method?.replace(/_/g, " ") || "Not specified"
+        }
         </p>
         <p style="margin:0 0 8px;">
           <strong>Status:</strong> ${payment?.paid ? "Paid" : "Unpaid"}
         </p>
-        ${
-          payment?.transactionId
-            ? `<p style="margin:0;"><strong>Transaction ID:</strong> ${payment.transactionId}</p>`
-            : ""
+        ${payment?.transactionId
+          ? `<p style="margin:0;"><strong>Transaction ID:</strong> ${payment.transactionId}</p>`
+          : ""
         }
       </div>
 
@@ -635,7 +782,7 @@ exports.createOrder = async (req, res) => {
       <!-- CTA -->
       <div style="text-align:center; margin:32px 0 0;">
         <a
-          href="https://ajah-eight.vercel/checkout/completed/${savedOrder.orderId}"
+          href="https://ajahmart.com/orders/${result.orderId}"
           style="display:inline-block; padding:12px 28px; background:#e76f51; color:#ffffff; text-decoration:none; font-weight:600; border-radius:6px;"
         >
           View Order
