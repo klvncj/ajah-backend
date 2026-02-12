@@ -13,6 +13,7 @@ const orderRoutes = require("./routes/order.route");
 const analyticsRoutes = require("./routes/analytics.route");
 const storeRoutes = require("./routes/store.route");
 const authRoutes = require("./routes/auth.route");
+const webhookRoutes = require("./routes/webhook.route");
 
 const mongoUrl = process.env.MONGODB_URL;
 
@@ -100,6 +101,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/stores", storeRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/webhooks", webhookRoutes);
 
 // health
 app.get("/", (req, res) => {
