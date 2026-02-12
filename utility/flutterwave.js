@@ -11,23 +11,30 @@ async function generatePaymentLink(options) {
     try {
         const { amount, currency, email, name, tx_ref, redirect_url, meta } = options;
 
+        const payload = {
+            tx_ref,
+            amount,
+            currency: currency || "NGN",
+            redirect_url,
+            customer: {
+                email,
+                name,
+            },
+            customizations: {
+                title: "Ajah Payment",
+                description: "Complete your payment securely",
+                logo: "https://ajahmart.com/logo.png",
+            },
+        };
+
+        // Add meta if provided
+        if (meta) {
+            payload.meta = meta;
+        }
+
         const response = await axios.post(
             `${FLUTTERWAVE_URL}/payments`,
-            {
-                tx_ref,
-                amount,
-                currency: currency || "NGN",
-                redirect_url,
-                customer: {
-                    email,
-                    name,
-                },
-                meta,
-                customizations: {
-                    title: "Ajah Payment",
-                    logo: "https://ajahmart.com/logo.png",
-                },
-            },
+            payload,
             {
                 headers: { Authorization: `Bearer ${SECRET_KEY}` },
             },

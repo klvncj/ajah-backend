@@ -114,10 +114,17 @@ exports.checkout = async (req, res, next) => {
       redirect_url: `${process.env.FRONTEND_URL || "http://localhost:5173"}/checkout/verify?tx_ref=${tx_ref}`,
     });
 
+    // Return both link (for fallback) and config data (for inline modal)
     return res.status(200).json({
       message: "Payment link generated",
-      link: paymentLink.link,
+      link: paymentLink.link, // Keep for backward compatibility
       tx_ref,
+      amount: totalAmount,
+      customer: {
+        email: finalShippingAddress.email,
+        name: finalShippingAddress.fullName,
+        phone: finalShippingAddress.phone || finalShippingAddress.phoneNumber || "",
+      },
     });
   } catch (error) {
     console.error("Checkout Error:", error);
