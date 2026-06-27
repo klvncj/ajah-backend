@@ -207,7 +207,7 @@ exports.createOrder = async (req, res) => {
   } catch (error) {
     console.error("Create Order Error:", error);
     res.status(500).json({
-      message: "Error creating order",
+      message: error.message || "Error creating order",
       error: error.message,
     });
   }
@@ -233,6 +233,7 @@ exports.getOrderbyOrderId = async (req, res) => {
       payment: order.payment,
       subTotal: order.subTotal,
       shippingFee: order.shippingFee,
+      shippingAddress: order.shippingAddress,
       products: order.products.map((p) => ({
         _id: p.product._id,
         name: p.product.name,

@@ -1,0 +1,2 @@
+Error: Product not found: 69a57577c7637cf963310e9f
+Payload: {"user":"696bf2b00febaa42207d68f6","products":[{"product":"69a57577c7637cf963310e9f","quantity":1,"variation":null}],"shippingAddress":{"fullName":"Mike Rafone","email":"auey@mail.com","phone":"080293725271422","address":"Bob Wallace Avenue/Sparkman Drive","state":"Alabama","country":"United States"},"shippingFee":1550,"payment":{"method":"cash_on_delivery","paid":false}}
