@@ -30,15 +30,19 @@ const allowedOrigins = [
 ];
 
 // middleware
+// Prevent Vercel edge from caching CORS headers for different origins
+app.use((req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.setHeader("Vary", "Origin");
+  next();
+});
+
 app.use(
   cors({
-    origin(origin, callback) {
-      // Allow requests with no origin (server-to-server, Vercel health checks)
-      if (!origin) {
-        return callback(null, true);
-      }
-
-      if (allowedOrigins.includes(origin)) {
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error("CORS blocked"));
