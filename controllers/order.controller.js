@@ -239,6 +239,7 @@ exports.getOrderbyOrderId = async (req, res) => {
         name: p.product.name,
         price: p.product.price,
         quantity: p.quantity,
+        variation: p.variation,
       })),
     };
     res.status(200).json(formattedOrder);
@@ -275,6 +276,7 @@ exports.getOrderDetails = async (req, res) => {
         name: p.product.name,
         price: p.product.price,
         quantity: p.quantity,
+        variation: p.variation,
       })),
     };
     res.status(200).json(formattedOrder);
