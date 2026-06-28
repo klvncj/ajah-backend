@@ -314,8 +314,20 @@ exports.getProductsPaginated = async (req, res) => {
 
 exports.getAllActiveProducts = async (req, res) => {
   try {
-    const products = await productModel.find({ status: "active" });
-    res.status(200).json(products);
+    const products = await productModel
+      .find({ status: "active" })
+      .populate("category", "name");
+
+    const formatted = products.map((p) => {
+      // Handle case where category might be null or undefined if deleted
+      const categoryName = p.category ? p.category.name : null;
+      return {
+        ...p._doc,
+        category: categoryName,
+      };
+    });
+
+    res.status(200).json(formatted);
   } catch (error) {
     res.status(500).json({
       message: "Error fetching active products",
