@@ -15,6 +15,7 @@ const storeRoutes = require("./routes/store.route");
 const authRoutes = require("./routes/auth.route");
 const webhookRoutes = require("./routes/webhook.route");
 const bannerRoutes = require("./routes/banner.route");
+const uploadRoutes = require("./routes/upload.route");
 
 const mongoUrl = process.env.MONGODB_URL;
 
@@ -108,6 +109,7 @@ app.use("/api/stores", storeRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/banners", bannerRoutes);
+app.use("/api/upload", uploadRoutes);
 
 // health
 app.get("/", (req, res) => {

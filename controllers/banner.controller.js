@@ -1,9 +1,32 @@
 const Banner = require("../models/banner.model");
+const uploadToCloudinary = require("../utility/cloudinaryUpload");
 
 // Create a new banner
 exports.createBanner = async (req, res) => {
   try {
-    const banner = new Banner(req.body);
+    const { title, subtitle, ctaText, ctaLink, isActive, order } = req.body;
+    let imageUrl = req.body.image; // URL string from form field
+
+    // If a file was uploaded, upload to Cloudinary and use the resulting URL
+    if (req.file) {
+      const result = await uploadToCloudinary(req.file.buffer);
+      imageUrl = result.secure_url;
+    }
+
+    if (!imageUrl) {
+      return res.status(400).json({ message: "Image is required (URL or file upload)" });
+    }
+
+    const banner = new Banner({
+      image: imageUrl,
+      title,
+      subtitle,
+      ctaText,
+      ctaLink,
+      isActive: isActive !== undefined ? isActive : true,
+      order: order || 0,
+    });
+
     await banner.save();
     res.status(201).json(banner);
   } catch (error) {
@@ -45,7 +68,15 @@ exports.getBannerById = async (req, res) => {
 // Update banner
 exports.updateBanner = async (req, res) => {
   try {
-    const banner = await Banner.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = { ...req.body };
+
+    // If a new file was uploaded, upload to Cloudinary
+    if (req.file) {
+      const result = await uploadToCloudinary(req.file.buffer);
+      updateData.image = result.secure_url;
+    }
+
+    const banner = await Banner.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     });

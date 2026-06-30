@@ -11,6 +11,11 @@ const productSchema = new mongoose.Schema({
     required: true,
     min: 0
   },
+  slug: {
+    type: String,
+    unique: true,
+    index: true
+  },
   images: {
     type: [String], // array of image URLs
     default: []
@@ -57,6 +62,25 @@ const productSchema = new mongoose.Schema({
   }
 });
 
+const slugify = require("slugify");
+
+productSchema.pre("save", async function() {
+  if (this.isModified("name") || !this.slug) {
+    let baseSlug = slugify(this.name, { lower: true, strict: true });
+    let uniqueSlug = baseSlug;
+    let counter = 1;
+    
+    // Check for uniqueness
+    while (true) {
+      const existingProduct = await this.constructor.findOne({ slug: uniqueSlug, _id: { $ne: this._id } });
+      if (!existingProduct) break;
+      uniqueSlug = `${baseSlug}-${counter}`;
+      counter++;
+    }
+    
+    this.slug = uniqueSlug;
+  }
+});
 
 const Product = mongoose.model("Product", productSchema);
 

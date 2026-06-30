@@ -59,13 +59,18 @@ exports.createProduct = async (req, res) => {
 };
 
 
-// Controller function to get product details
 exports.getProductDetails = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Check if the id parameter is a valid MongoDB ObjectId
+    const isObjectId = require("mongoose").Types.ObjectId.isValid(id);
+    
+    // Construct query to find by either _id or slug
+    const query = isObjectId ? { _id: id } : { slug: id };
+
     const product = await productModel
-      .findById(id)
+      .findOne(query)
       .populate("category", "name");
 
     if (!product) {
