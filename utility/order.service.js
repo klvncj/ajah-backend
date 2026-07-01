@@ -83,14 +83,14 @@ async function finalizeOrder({ orderData, paymentData, tx_ref }) {
             );
         }
 
-        // 5. Trigger Email (Async)
-        triggerOrderEmail(savedOrder);
+        // 5. Trigger Email (Wait for it to finish so Vercel doesn't kill the process)
+        await triggerOrderEmail(savedOrder);
 
         return savedOrder;
     });
 }
 
-function triggerOrderEmail(order) {
+async function triggerOrderEmail(order) {
     if (typeof sendEmail === "function" && order.shippingAddress?.email) {
         const formatPrice = (n) =>
             Number(n).toLocaleString("en-NG", { minimumFractionDigits: 2 });
@@ -251,21 +251,26 @@ function triggerOrderEmail(order) {
         </div>
         `;
 
-        // 1. Send Customer Confirmation Email
-        sendEmail({
-            to: order.shippingAddress.email,
-            subject: `Your Order #${order.orderId} is Confirmed!`,
-            text: `Your order #${order.orderId} has been placed. Total: ₦${formatPrice(order.totalAmount)}`,
-            html: orderConfirmationHtml,
-        }).catch((err) => console.error("Customer Email Error:", err));
-
-        // 2. Send Admin Notification Email
-        sendEmail({
-            to: process.env.ADMIN_EMAIL,
-            subject: `[New Order] #${order.orderId} from ${order.shippingAddress.fullName}`,
-            text: `New order #${order.orderId} placed by ${order.shippingAddress.fullName}. Total: ₦${formatPrice(order.totalAmount)}`,
-            html: adminOrderHtml,
-        }).catch((err) => console.error("Admin Email Error:", err));
+        try {
+            await Promise.all([
+                // 1. Send Customer Confirmation Email
+                sendEmail({
+                    to: order.shippingAddress.email,
+                    subject: `Your Order #${order.orderId} is Confirmed!`,
+                    text: `Your order #${order.orderId} has been placed. Total: ₦${formatPrice(order.totalAmount)}`,
+                    html: orderConfirmationHtml,
+                }),
+                // 2. Send Admin Notification Email
+                sendEmail({
+                    to: process.env.ADMIN_EMAIL,
+                    subject: `[New Order] #${order.orderId} from ${order.shippingAddress.fullName}`,
+                    text: `New order #${order.orderId} placed by ${order.shippingAddress.fullName}. Total: ₦${formatPrice(order.totalAmount)}`,
+                    html: adminOrderHtml,
+                })
+            ]);
+        } catch (err) {
+            console.error("Order Email Error:", err);
+        }
     }
 }
 

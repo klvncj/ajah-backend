@@ -79,7 +79,7 @@ exports.getProductDetails = async (req, res) => {
 
     const formatted = {
       ...product._doc,
-      category: product.category.name
+      category: product.category ? product.category.name : null
     };
 
     res.status(200).json(formatted);
@@ -158,7 +158,7 @@ exports.getAllProducts = async (req, res) => {
 
     const formatted = products.map((p) => ({
       ...p._doc,
-      category: p.category.name,
+      category: p.category ? p.category.name : null,
     }));
 
     res.status(200).json(formatted);
@@ -374,7 +374,7 @@ exports.getLatestProducts = async (req, res) => {
 
     const formatted = products.map((p) => ({
       ...p._doc,
-      category: p.category.name,
+      category: p.category ? p.category.name : null,
     }));
 
     res.status(200).json(formatted);

@@ -28,10 +28,19 @@ exports.flutterwaveWebhook = async (req, res) => {
             return res.status(200).json({ message: "Transaction not successful" });
         }
 
-        // 3. Finalize Order
+        // 3. Retrieve Transaction to get orderData (meta is not passed by Flutterwave for some reason)
+        const TransactionModel = require("../models/transaction");
+        const transactionRecord = await TransactionModel.findOne({ tx_ref });
+        
+        if (!transactionRecord) {
+            console.warn(`Webhook: Transaction ${tx_ref} not found in database.`);
+            return res.status(404).json({ message: "Transaction not found" });
+        }
+
+        // 4. Finalize Order
         // The shared service handles idempotency (checks if already processed)
         const result = await finalizeOrder({
-            orderData: payload.data.meta?.orderData || {}, // Fallback or retrieve from DB
+            orderData: payload.data.meta?.orderData || transactionRecord.orderData || {},
             paymentData: {
                 method: "card",
                 transactionId,
