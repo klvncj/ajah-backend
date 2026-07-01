@@ -17,5 +17,5 @@ router.get("/:id", getCategoryDetails);
 // Route to update category details by ID
 router.put("/:id", updateCategory);
 // Route to delete category by ID
-router.delete("/delete/:categoryId", deleteCategory);
+router.delete("/delete/:id", deleteCategory);
 module.exports = router;
